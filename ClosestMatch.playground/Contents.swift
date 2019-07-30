@@ -6,16 +6,33 @@ struct Match {
     let homeTeamName: String
     let awayTeamName: String
 }
+
+protocol DateComparable {
+    func absTimeIntervalSince(_ other: Date) -> TimeInterval
+}
+
+extension Date: DateComparable {
+    func absTimeIntervalSince(_ other: Date) -> TimeInterval {
+        return abs(timeIntervalSince(other))
+    }
+}
+
+extension Match: DateComparable {
+    func absTimeIntervalSince(_ other: Date) -> TimeInterval {
+        return date.absTimeIntervalSince(other)
+    }
+}
+
 // Return the closest match index to [dateTapped], return 0 otherwise,
 // [matchList] is sorted by date.
 // Runs in at worst logarithmic time, making O(log n) comparisons
 // I wouldn't use 0 as a return value for the nil case as it could be a valid index
-func findClosestMatch(dateTapped: Date, matchList: [Match]) -> Int {
+func findClosestMatch(dateTapped: Date, matchList: [DateComparable]) -> Int {
     return matchList.binarySearchIndexOfClosest(to: dateTapped) ?? 0
 }
 
-extension Array where Element == Match {
-
+extension Array where Element == DateComparable {
+    
     func binarySearchIndexOfClosest(to date: Date,
                                     range: Range<Int>? = nil) -> Int? {
         let initialRange: Range<Int>
@@ -25,7 +42,7 @@ extension Array where Element == Match {
             initialRange = 0..<count - 1
         }
         guard self.isEmpty == false else { return nil }
-
+        
         if initialRange.upperBound == initialRange.lowerBound {
             return initialRange.lowerBound
         }
@@ -33,11 +50,10 @@ extension Array where Element == Match {
         let lhsPatition = Array(self[0..<center])
         let rhsPartition = Array(self[center..<count])
 
-        let lhsInterval = (lhsPatition.last?.date).absTimeIntervalSince(date,
-                                                                        or: Double.greatestFiniteMagnitude)
+        let lhsInterval = lhsPatition.last?.absTimeIntervalSince(date) ?? Double.greatestFiniteMagnitude
+        
+        let rhsInterval = rhsPartition.first?.absTimeIntervalSince(date) ?? Double.greatestFiniteMagnitude
 
-        let rhsInterval = (rhsPartition.first?.date).absTimeIntervalSince(date,
-                                                                          or: Double.greatestFiniteMagnitude)
         if lhsInterval < rhsInterval {
             return lhsPatition.binarySearchIndexOfClosest(to: date,
                                                           range: initialRange.dropLast(count - lhsPatition.count))
@@ -48,22 +64,13 @@ extension Array where Element == Match {
     }
 }
 
-extension Optional where Wrapped == Date {
-    func absTimeIntervalSince(_ other: Date?, or defaultInterval: TimeInterval) -> TimeInterval {
-        guard let date = self, let other = other else {
-            return defaultInterval
-        }
-        return abs(date.timeIntervalSince(other))
-    }
-}
+import XCTest
 
 extension String {
     var date: Date? {
         return ISO8601DateFormatter().date(from: "\(self)T00:00:00Z")
     }
 }
-
-import XCTest
 
 class SearchTestCase: XCTestCase {
 
